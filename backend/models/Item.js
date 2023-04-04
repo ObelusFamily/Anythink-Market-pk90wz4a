@@ -2,6 +2,13 @@ var mongoose = require("mongoose");
 var uniqueValidator = require("mongoose-unique-validator");
 var slug = require("slug");
 var User = mongoose.model("User");
+var { Configuration, OpenAIApi } = require("openai");
+
+var configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+var openai = new OpenAIApi(configuration);
 
 var ItemSchema = new mongoose.Schema(
   {
@@ -57,6 +64,27 @@ ItemSchema.methods.toJSONFor = function(user) {
     favoritesCount: this.favoritesCount,
     seller: this.seller.toProfileJSONFor(user)
   };
+};
+
+ItemSchema.methods.createImage = async function() {
+  const response = await openai.createImage({
+    prompt: this.title ?? "",
+    n: 1,
+    size: "256x256",
+  });
+
+  if (
+    response instanceof 'undefined'
+    || response.data instanceof 'undefined'
+    || response.data.data instanceof 'undefined'
+    || response.data.data.length < 1
+    || response.data.data instanceof 'undefined'
+    || !(response.data.data[0].url instanceof 'string')
+  ) {
+    return;
+  }
+
+  this.image = response.data.data[0].url;
 };
 
 mongoose.model("Item", ItemSchema);
