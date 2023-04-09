@@ -4,6 +4,8 @@ var Item = mongoose.model("Item");
 var Comment = mongoose.model("Comment");
 var User = mongoose.model("User");
 var auth = require("../auth");
+var dalle = require("../../lib/OpenAI/dale")
+
 const { sendEvent } = require("../../lib/event");
 
 // Preload item objects on routes with ':item'
@@ -145,13 +147,17 @@ router.post("/", auth.required, function(req, res, next) {
       }
 
       var item = new Item(req.body.item);
+        dalle.createImage(item.title).then((result) => {
+          item.image = result;
+        });
 
       item.seller = user;
-
-      return item.save().then(function() {
-        sendEvent('item_created', { item: req.body.item })
-        return res.json({ item: item.toJSONFor(user) });
-      });
+      setTimeout(() => {
+        return item.save().then(function() {
+          sendEvent('item_created', { item: req.body.item })
+          return res.json({ item: item.toJSONFor(user) });
+        });
+      }, 5000);
     })
     .catch(next);
 });
@@ -184,6 +190,9 @@ router.put("/:item", auth.required, function(req, res, next) {
 
       if (typeof req.body.item.image !== "undefined") {
         req.item.image = req.body.item.image;
+      } else {
+        const dalle = new Dalle();
+        req.item.image = dalle.createImage(req.item.title);
       }
 
       if (typeof req.body.item.tagList !== "undefined") {
